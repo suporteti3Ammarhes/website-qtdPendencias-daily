@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Pendências{% endblock %}
+
+{% block head %}
+<style>
+  .monetary-value {
+    color: #28a745 !important;
+    font-weight: bold;
+  }
+
+  .valores-grupo {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .grupo-card:hover .valores-grupo {
+    background-color: #e9ecef;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if total_execucoes == 0 %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+  <i class="fas fa-exclamation-triangle me-2"></i>
+  <strong>Atenção!</strong> Não há dados de execução nos últimos 3 dias.
+  Verifique se o scheduler está rodando e se há conexão com o banco de dados.
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row mb-4">
+  <div class="col-12">
+    <h1 class="display-4 text-center mb-0">
+      <i class="fas fa-chart-line text-primary me-3"></i>
+      Dashboard de Pendências
+    </h1>
+    <p class="text-center text-muted fs-5">Dados em tempo real do banco de dados</p>
+  </div>
+</div>
+
+<!-- Filtro de Grupos -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-filter me-2"></i>
+            Filtros de Grupos
+          </h5>
+          <div>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllGroups">
+              <i class="fas fa-check-double me-1"></i>Todos
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="clearAllGroups">
+              <i class="fas fa-times me-1"></i>Limpar
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <form method="GET" id="filtroForm">
+          <div class="row" id="gruposFilter">
+            {% for grupo in grupos_disponiveis %}
+            <div class="col-lg-3 col-md-4 col-sm-6 mb-2">
+              <div class="form-check">
+                <input class="form-check-input grupo-checkbox" type="checkbox" name="grupos"
+                  value="{{ grupo.grupo_param }}" id="grupo_{{ loop.index }}" {% if not grupos_selecionados or
+                  grupo.grupo_param in grupos_selecionados %}checked{% endif %}>
+                <label class="form-check-label" for="grupo_{{ loop.index }}">
+                  <strong>{{ grupo.grupo_param }}</strong>
+                  <small class="text-muted d-block">{{ grupo.total_pendencias }} pendências</small>
+                </label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="mt-3">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-sync-alt me-2"></i>Aplicar Filtros
+            </button>
+            <small class="text-muted ms-3">
+              <i class="fas fa-info-circle me-1"></i>
+              Suas preferências são salvas automaticamente
+            </small>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Estatísticas Gerais -->
+<div class="row mb-5">
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="stat-card stat-grupos">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="mb-0 fw-bold">{{ estatisticas.total_grupos }}</h3>
+          <p class="mb-0">Grupos Exibidos</p>
+        </div>
+        <i class="fas fa-layer-group fa-3x opacity-75"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="stat-card stat-pendencias">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="mb-0 fw-bold">{{ total_pendencias }}</h3>
+          <p class="mb-0">Pendências</p>
+        </div>
+        <i class="fas fa-tasks fa-3x opacity-75"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="stat-card stat-execucoes">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="mb-0 fw-bold">{{ total_execucoes }}</h3>
+          <p class="mb-0">Execuções</p>
+        </div>
+        <i class="fas fa-play-circle fa-3x opacity-75"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="stat-card stat-grupos">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="mb-0 fw-bold">{{ total_reducoes }}</h3>
+          <p class="mb-0">Reduções</p>
+        </div>
+        <i class="fas fa-arrow-down fa-3x opacity-75"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="stat-card stat-reducoes">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="mb-0 fw-bold">{{ total_aumentos }}</h3>
+          <p class="mb-0">Aumentos</p>
+        </div>
+        <i class="fas fa-arrow-up fa-3x opacity-75"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ações Rápidas -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="fas fa-bolt me-2"></i>Ações Rápidas
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <a href="{{ url_for('export_excel') }}" class="btn btn-primary btn-lg w-100">
+              <i class="fas fa-file-excel me-2"></i>
+              Exportar Excel Completo
+            </a>
+            <small class="text-muted d-block mt-1">
+              Último horário de cada dia dos últimos 3 dias
+            </small>
+          </div>
+          <div class="col-md-6 mb-3">
+            <button class="btn btn-outline-primary btn-lg w-100" onclick="atualizarDados()">
+              <i class="fas fa-sync-alt me-2"></i>
+              Atualizar Dados
+            </button>
+            <small class="text-muted d-block mt-1">
+              Recarregar dados mais recentes
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Lista de grupo_param -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="fas fa-layer-group me-2"></i>Grupos de Pendências
+        </h5>
+        <span class="badge bg-light text-dark">{{ dados_por_grupo|length }} grupos</span>
+      </div>
+      <div class="card-body p-0">
+        {% if dados_por_grupo %}
+        <div class="row g-0">
+          {% for grupo_id, grupo_info in dados_por_grupo.items() %}
+          <div class="col-lg-6 col-xl-4 p-3">
+            <div class="card grupo-card h-100" onclick="verDetalhesGrupo({{ grupo_id }})" style="cursor: pointer;">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                  <h6 class="card-title fw-bold text-primary mb-0">
+                    {{ grupo_info.nome_grupo }}
+                  </h6>
+                  <span class="badge bg-primary">{{ grupo_info.pendencias|length }}</span>
+                </div>
+
+
+                <div class="row text-center mb-3">
+                  <div class="col-4">
+                    <div class="small text-muted">Total</div>
+                    <div class="fw-bold" id="total-{{ grupo_id }}">
+                      {{ grupo_info.pendencias|length }}
+                    </div>
+                  </div>
+                  <div class="col-4">
+                    <div class="small text-muted">Reduções</div>
+                    <div class="fw-bold text-success" id="reducoes-{{ grupo_id }}">0</div>
+                  </div>
+                  <div class="col-4">
+                    <div class="small text-muted">Aumentos</div>
+                    <div class="fw-bold text-danger" id="aumentos-{{ grupo_id }}">0</div>
+                  </div>
+                </div>
+
+                <div class="valores-grupo" id="valores-{{ grupo_id }}" style="display: none;">
+                  <div class="border-top pt-2 mb-2">
+                    <div class="row text-center">
+                      <div class="col-6">
+                        <div class="small text-muted">Valores (R$)</div>
+                        <div class="fw-bold text-success monetary-value" id="monetario-{{ grupo_id }}">R$ 0,00</div>
+                      </div>
+                      <div class="col-6">
+                        <div class="small text-muted">Contagens</div>
+                        <div class="fw-bold" id="contagem-{{ grupo_id }}">0</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="progress progress-custom mb-2">
+                  <div class="progress-bar progress-bar-custom" id="progress-{{ grupo_id }}" style="width: 0%"></div>
+                </div>
+
+                <div class="d-flex justify-content-between small text-muted">
+                  <span>Execuções: {{ grupo_info.historico_datas|length }}</span>
+                  <span class="fw-bold">Ver detalhes →</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+          <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+          <h5 class="text-muted">Nenhum grupo encontrado</h5>
+          <p class="text-muted">Verifique se existem arquivos de execução na pasta output</p>
+          <button class="btn btn-outline-primary" onclick="atualizarDados()">
+            <i class="fas fa-sync-alt me-2"></i>Tentar Novamente
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Histórico de Execuções -->
+{% if dados_historicos %}
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="fas fa-history me-2"></i>Histórico de Execuções
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-custom">
+            <thead>
+              <tr>
+                <th>Data/Hora</th>
+                <th>Arquivo</th>
+                <th>Total Consultas</th>
+                <th>Executadas</th>
+                <th>Com Erro</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for execucao in dados_historicos %}
+              <tr>
+                <td>
+                  <div class="fw-bold">{{ execucao.data.strftime('%d/%m/%Y') }}</div>
+                  <small class="text-muted">{{ execucao.data.strftime('%H:%M:%S') }}</small>
+                </td>
+                <td>
+                  <small class="font-monospace">{{ execucao.arquivo.split('\\')[-1] }}</small>
+                </td>
+                <td>
+                  <span class="badge bg-info">{{ execucao.dados.total_consultas }}</span>
+                </td>
+                <td>
+                  <span class="badge bg-success">{{ execucao.dados.consultas_executadas }}</span>
+                </td>
+                <td>
+                  <span class="badge bg-danger">{{ execucao.dados.consultas_com_erro }}</span>
+                </td>
+                <td>
+                  {% if execucao.dados.consultas_com_erro == 0 %}
+                  <span class="badge bg-success">
+                    <i class="fas fa-check me-1"></i>Sucesso
+                  </span>
+                  {% else %}
+                  <span class="badge bg-warning">
+                    <i class="fas fa-exclamation-triangle me-1"></i>Parcial
+                  </span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // As estatísticas já são calculadas no backend e passadas via template
+    console.log('Dashboard carregado com sucesso');
+  });
+
+  function verDetalhesGrupo(grupoId) {
+    window.location.href = `/grupo/${grupoId}`;
+  }
+
+  function atualizarDados() {
+    const botao = event.target;
+    const iconOriginal = botao.innerHTML;
+
+    botao.disabled = true;
+    botao.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Atualizando...';
+
+    setTimeout(() => {
+      location.reload();
+    }, 1500);
+  }
+
+  // Animação de contadores
+  function animarContador(elemento, valorFinal) {
+    const valorInicial = 0;
+    const incremento = valorFinal / 30;
+    let valorAtual = valorInicial;
+
+    const timer = setInterval(() => {
+      valorAtual += incremento;
+      if (valorAtual >= valorFinal) {
+        elemento.textContent = valorFinal;
+        clearInterval(timer);
+      } else {
+        elemento.textContent = Math.floor(valorAtual);
+      }
+    }, 50);
+  }
+
+  // Aplicar animações aos contadores
+  document.addEventListener('DOMContentLoaded', function () {
+    setTimeout(() => {
+      const contadores = document.querySelectorAll('.stat-card h3');
+      contadores.forEach(contador => {
+        const valor = parseInt(contador.textContent);
+        if (!isNaN(valor)) {
+          contador.textContent = '0';
+          animarContador(contador, valor);
+        }
+      });
+    }, 100);
+  });
+
+  // Gerenciamento de filtros de grupos com localStorage
+  document.addEventListener('DOMContentLoaded', function () {
+    const STORAGE_KEY = 'pendencias_grupos_selecionados';
+
+    function carregarPreferencias() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const grupos = JSON.parse(saved);
+          if (!window.location.search.includes('grupos=')) {
+            document.querySelectorAll('.grupo-checkbox').forEach(checkbox => {
+              checkbox.checked = grupos.includes(checkbox.value);
+            });
+          }
+        } catch (e) {
+          console.warn('Erro ao carregar preferências salvas:', e);
+        }
+      }
+    }
+
+    // Salvar preferências
+    function salvarPreferencias() {
+      const selecionados = [];
+      document.querySelectorAll('.grupo-checkbox:checked').forEach(checkbox => {
+        selecionados.push(checkbox.value);
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(selecionados));
+    }
+
+    document.getElementById('selectAllGroups').addEventListener('click', function () {
+      document.querySelectorAll('.grupo-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+      });
+      salvarPreferencias();
+    });
+
+    document.getElementById('clearAllGroups').addEventListener('click', function () {
+      document.querySelectorAll('.grupo-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+      });
+      salvarPreferencias();
+    });
+
+    document.querySelectorAll('.grupo-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', salvarPreferencias);
+    });
+
+    let autoSubmitTimeout;
+    document.querySelectorAll('.grupo-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', function () {
+        clearTimeout(autoSubmitTimeout);
+        autoSubmitTimeout = setTimeout(() => {
+
+        }, 2000);
+      });
+    });
+
+    carregarPreferencias();
+  });
+</script>
+{% endblock %}

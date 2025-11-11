@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+
+{% block title %}{{ grupo_info.nome_grupo }} - grupo_param {{ grupo_info.grupo_param }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-12">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a href="{{ url_for('index') }}">
+            <i class="fas fa-home me-1"></i>Dashboard
+          </a>
+        </li>
+        <li class="breadcrumb-item active">{{ grupo_info.nome_grupo }}</li>
+      </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="display-5 mb-0">
+          <i class="fas fa-layer-group text-primary me-3"></i>
+          {{ grupo_info.nome_grupo }}
+        </h1>
+      </div>
+      <div class="text-end">
+        <a href="{{ url_for('export_excel') }}" class="btn btn-primary btn-lg">
+          <i class="fas fa-file-excel me-2"></i>Exportar Excel
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Estatísticas do Grupo -->
+<div class="row mb-4">
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="stat-card stat-pendencias">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="mb-0 fw-bold">{{ grupo_info.pendencias|length }}</h3>
+          <p class="mb-0">Pendências</p>
+        </div>
+        <i class="fas fa-tasks fa-3x opacity-75"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="stat-card stat-execucoes">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="mb-0 fw-bold">{{ grupo_info.historico_datas|length }}</h3>
+          <p class="mb-0">Execuções</p>
+        </div>
+        <i class="fas fa-play-circle fa-3x opacity-75"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="stat-card stat-grupos">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="mb-0 fw-bold" id="total-reducoes">0</h3>
+          <p class="mb-0">Reduções</p>
+        </div>
+        <i class="fas fa-arrow-down fa-3x opacity-75"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="stat-card stat-reducoes">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="mb-0 fw-bold" id="total-aumentos">0</h3>
+          <p class="mb-0">Aumentos</p>
+        </div>
+        <i class="fas fa-arrow-up fa-3x opacity-75"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gráfico de Evolução -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="fas fa-chart-line me-2"></i>Evolução das Pendências ALTAMENTE CRÍTICAS (PRETAS)<br>
+          <br> <i class="fas fa-chart-line me-2"></i>| {{ grupo_info.nome_grupo }} |
+        </h5>
+      </div>
+      <div class="card-body">
+        {% set pendencias_prioritarias = [] %}
+        {% for pend_id, pend_info in grupo_info.pendencias.items() %}
+        {% if pend_info.ordem_prioridade in [1] %}
+        {% set _ = pendencias_prioritarias.append((pend_id, pend_info)) %}
+        {% endif %}
+        {% endfor %}
+
+        {% if pendencias_prioritarias %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead class="table-light">
+              <tr>
+                <th>ID</th>
+                <th>Pendência</th>
+                <th>Usuário</th>
+                <th>Prioridade</th>
+                <th>Última Evolução</th>
+                <th>Período</th>
+                <th>Diferença</th>
+                <th>Percentual</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pend_id, pend_info in pendencias_prioritarias %}
+              <tr>
+                <td><strong>{{ pend_id }}</strong></td>
+                <td>{{ pend_info.nome_pendencia }}</td>
+                <td>
+                  <small class="text-muted">
+                    <i class="fas fa-user me-1"></i>{{ pend_info.nome_usuario }}
+                  </small>
+                </td>
+                <td>
+                  {% if pend_info.ordem_prioridade == 1 %}
+                  <span class="badge bg-black">
+                    <i class="fas fa-exclamation-circle me-1"></i>Alta
+                  </span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if pend_info.evolucao and pend_info.evolucao|length > 0 %}
+                  {% set ultima_evolucao = pend_info.evolucao[0] %}
+                  {% if ultima_evolucao.tendencia == 'redução' %}
+                  <span class="badge badge-reducao">
+                    <i class="fas fa-arrow-down me-1"></i>Redução
+                  </span>
+                  {% elif ultima_evolucao.tendencia == 'aumento' %}
+                  <span class="badge badge-aumento">
+                    <i class="fas fa-arrow-up me-1"></i>Aumento
+                  </span>
+                  {% else %}
+                  <span class="badge badge-neutro">
+                    <i class="fas fa-minus me-1"></i>Estável
+                  </span>
+                  {% endif %}
+                  {% else %}
+                  <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if pend_info.evolucao and pend_info.evolucao|length > 0 %}
+                  {% set ultima_evolucao = pend_info.evolucao[0] %}
+                  <small>{{ ultima_evolucao.data_de }} → {{ ultima_evolucao.data_para }}</small>
+                  {% else %}
+                  <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if pend_info.evolucao and pend_info.evolucao|length > 0 %}
+                  {% set ultima_evolucao = pend_info.evolucao[0] %}
+                  {% if ultima_evolucao.diferenca > 0 %}
+                  <span
+                    class="{% if ultima_evolucao.tendencia == 'redução' %}text-success{% else %}text-danger{% endif %} fw-bold">
+                    {% if ultima_evolucao.eh_monetario %}<i class="fas fa-dollar-sign me-1"></i>{% endif %}
+                    {{ ultima_evolucao.diferenca_formatada }}
+                  </span>
+                  {% else %}
+                  <span class="text-muted">0</span>
+                  {% endif %}
+                  {% else %}
+                  <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if pend_info.evolucao and pend_info.evolucao|length > 0 %}
+                  {% set ultima_evolucao = pend_info.evolucao[0] %}
+                  {% if ultima_evolucao.percentual > 0 %}
+                  <span
+                    class="{% if ultima_evolucao.tendencia == 'redução' %}text-success{% else %}text-danger{% endif %}">
+                    {{ ultima_evolucao.percentual }}%
+                  </span>
+                  {% elif ultima_evolucao.percentual < 0 %} <span
+                    class="{% if ultima_evolucao.tendencia == 'redução' %}text-success{% else %}text-danger{% endif %}">
+                    {{ ultima_evolucao.percentual }}%
+                    </span>
+                    {% else %}
+                    <span class="text-muted">0%</span>
+                    {% endif %}
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          Nenhuma pendência com prioridade 1 ou 2 encontrada neste grupo.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Lista Detalhada de Pendências -->
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="fas fa-clipboard-list me-2"></i>Detalhes das Pendências
+        </h5>
+        <div>
+          <button class="btn btn-outline-primary btn-sm me-2" onclick="expandirTodos()">
+            <i class="fas fa-expand-alt me-1"></i>Expandir Todos
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="recolherTodos()">
+            <i class="fas fa-compress-alt me-1"></i>Recolher Todos
+          </button>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        {% if grupo_info.pendencias %}
+        <div class="accordion" id="accordionPendencias">
+          {% for pend_id, pend_info in grupo_info.pendencias.items() %}
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="heading{{ pend_id }}">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#collapse{{ pend_id }}">
+                <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                  <div>
+                    <strong>ID {{ pend_id }}</strong> - {{ pend_info.nome_pendencia }}
+                    <br>
+                    <small class="text-muted">
+                      <i class="fas fa-user me-1"></i>Usuário: <strong>{{ pend_info.nome_usuario }}</strong>
+                    </small>
+                  </div>
+                  <div class="d-flex gap-2">
+                    <span class="badge bg-info">{{ pend_info.historico|length }} registros</span>
+                    {% if pend_info.evolucao %}
+                    {% set ultima_evolucao = pend_info.evolucao[0] %}
+                    {% if ultima_evolucao.tendencia == 'redução' %}
+                    <span class="badge badge-reducao">
+                      <i class="fas fa-arrow-down me-1"></i>Redução
+                    </span>
+                    {% elif ultima_evolucao.tendencia == 'aumento' %}
+                    <span class="badge badge-aumento">
+                      <i class="fas fa-arrow-up me-1"></i>Aumento
+                    </span>
+                    {% else %}
+                    <span class="badge badge-neutro">
+                      <i class="fas fa-minus me-1"></i>Estável
+                    </span>
+                    {% endif %}
+                    {% endif %}
+                  </div>
+                </div>
+              </button>
+            </h2>
+            <div id="collapse{{ pend_id }}" class="accordion-collapse collapse">
+              <div class="accordion-body">
+                <!-- Histórico de Execuções -->
+                <h6 class="fw-bold mb-3">
+                  <i class="fas fa-history me-2"></i>Histórico de Execuções
+                </h6>
+                <div class="table-responsive mb-4">
+                  <table class="table table-sm">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Data/Hora</th>
+                        <th>Quantidade</th>
+                        <th>Tipo</th>
+                        <th>Status</th>
+                        <th>Valor Formatado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for data, dados in pend_info.historico.items() %}
+                      <tr>
+                        <td>{{ data }}</td>
+                        <td>
+                          <span class="fw-bold {% if dados.eh_monetario %}text-success{% endif %}">
+                            {{ dados.valor_formatado }}
+                          </span>
+                        </td>
+                        <td>
+                          {% if dados.exibe_contagem == 2 %}
+                          <span class="badge bg-success">
+                            <i class="fas fa-dollar-sign me-1"></i>Monetário
+                          </span>
+                          {% else %}
+                          <span class="badge bg-primary">
+                            <i class="fas fa-hashtag me-1"></i>Contagem
+                          </span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          {% if dados.status == 'sucesso' %}
+                          <span class="badge bg-success">
+                            <i class="fas fa-check me-1"></i>Sucesso
+                          </span>
+                          {% else %}
+                          <span class="badge bg-warning">
+                            <i class="fas fa-exclamation-triangle me-1"></i>{{ dados.status }}
+                          </span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          <span class="fw-bold {% if dados.eh_monetario %}text-success{% endif %}">
+                            {% if dados.eh_monetario %}
+                            <i class="fas fa-dollar-sign me-1"></i>{{ dados.valor_formatado }}
+                            {% else %}
+                            {{ dados.valor_formatado }}
+                            {% endif %}
+                          </span>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Análise de Evolução -->
+                {% if pend_info.evolucao %}
+                <h6 class="fw-bold mb-3">
+                  <i class="fas fa-chart-line me-2"></i>Análise de Evolução
+                </h6>
+                <div class="table-responsive">
+                  <table class="table table-sm">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Período</th>
+                        <th>Quantidade Inicial</th>
+                        <th>Quantidade Final</th>
+                        <th>Diferença</th>
+                        <th>Percentual</th>
+                        <th>Tendência</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for evolucao in pend_info.evolucao %}
+                      <tr>
+                        <td>
+                          <small>{{ evolucao.data_de }} → {{ evolucao.data_para }}</small>
+                        </td>
+                        <td>
+                          <span class="{% if evolucao.eh_monetario %}text-success{% endif %}">
+                            {% if evolucao.eh_monetario %}<i class="fas fa-dollar-sign me-1"></i>{% endif %}{{
+                            evolucao.qtd_anterior_formatada }}
+                          </span>
+                        </td>
+                        <td>
+                          <span class="{% if evolucao.eh_monetario %}text-success{% endif %}">
+                            {% if evolucao.eh_monetario %}<i class="fas fa-dollar-sign me-1"></i>{% endif %}{{
+                            evolucao.qtd_atual_formatada }}
+                          </span>
+                        </td>
+                        <td>
+                          {% if evolucao.diferenca > 0 %}
+                          <span class="text-danger fw-bold">
+                            +{% if evolucao.eh_monetario %}<i class="fas fa-dollar-sign me-1"></i>{% endif %}{{
+                            evolucao.diferenca_formatada }}
+                          </span>
+                          {% elif evolucao.diferenca < 0 %} <span class="text-success fw-bold">
+                            -{% if evolucao.eh_monetario %}<i class="fas fa-dollar-sign me-1"></i>{% endif %}{{
+                            evolucao.diferenca_formatada }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">{{ evolucao.diferenca_formatada }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                          {% if evolucao.percentual > 0 %}
+                          <span class="text-danger">+{{ evolucao.percentual }}%</span>
+                          {% elif evolucao.percentual < 0 %} <span class="text-success">{{ evolucao.percentual
+                            }}%</span>
+                            {% else %}
+                            <span class="text-muted">{{ evolucao.percentual }}%</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                          {% if evolucao.tendencia == 'redução' %}
+                          <span class="badge badge-reducao">
+                            <i class="fas fa-arrow-down me-1"></i>Redução
+                          </span>
+                          {% elif evolucao.tendencia == 'aumento' %}
+                          <span class="badge badge-aumento">
+                            <i class="fas fa-arrow-up me-1"></i>Aumento
+                          </span>
+                          {% else %}
+                          <span class="badge badge-neutro">
+                            <i class="fas fa-minus me-1"></i>Estável
+                          </span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+          <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+          <h5 class="text-muted">Nenhuma pendência encontrada neste grupo</h5>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
